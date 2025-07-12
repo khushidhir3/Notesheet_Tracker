@@ -1,0 +1,22 @@
+name: flutter_project_with_dart
+description: A new Flutter project.
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.19.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  lottie: ^2.2.0
+  glassmorphism: ^2.0.0 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
