@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "301524738077",
+    "project_id": "notesheet-tracker-25efc",
+    "storage_bucket": "notesheet-tracker-25efc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:301524738077:android:d9b950f5580f651d2e66f4",
+        "android_client_info": {
+          "package_name": "com.khushi.notesheet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8U-BC6LcaLxBNwB4gsv8asvln_rfyOZQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

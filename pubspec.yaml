@@ -10,9 +10,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+
+
   
   lottie: ^2.2.0
   glassmorphism: ^2.0.0 
+  firebase_core: ^2.25.4
+  cloud_firestore: ^4.13.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

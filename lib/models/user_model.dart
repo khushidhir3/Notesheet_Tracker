@@ -1,8 +1,15 @@
-class AppUser{
+// lib/models/user_model.dart
+
+class AppUser {
   final String uid;
-  final String name;
   final String email;
   final String role;
-  AppUser({required this.uid,required this.name , required this.email,required this.role});
+  final String name;
+
+  AppUser({
+    required this.uid,
+    required this.email,
+    required this.role,
+    required this.name,
+  });
 }
-  
