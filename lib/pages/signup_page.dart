@@ -216,6 +216,11 @@ class _SignUpPageState extends State<SignUpPage> {
                             value: 'hod',
                             child: Text('HOD'),
                           ),
+                          DropdownMenuItem(
+                            value: 'dashboard',
+                            child: Text('Dashboard '),
+                          ),
+
                         ],
                         onChanged: (value) {
                           setState(() {

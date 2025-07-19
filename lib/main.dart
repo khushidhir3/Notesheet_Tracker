@@ -4,6 +4,8 @@ import 'pages/login_page.dart';
 import 'pages/student_page.dart';
 import 'pages/reviewer_page.dart';
 import 'pages/hod_page.dart';
+import 'pages/student_dashboard.dart';
+
 const MaterialColor maroon = MaterialColor(0xFF800000, {
   50: Color(0xFF800000),
   100: Color(0xFF800000),
@@ -21,7 +23,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://wdffpeiwqmkpmbvkncqw.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZmZwZWl3cW1rcG1idmtuY3F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NTk5MzMsImV4cCI6MjA2ODQzNTkzM30.I83lUfDX2h0h2KkMR5yHO3ZvqBCgvSQRSJMiM3ZLWyo',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkZmZwZWl3cW1rcG1idmtuY3F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NTk5MzMsImV4cCI6MjA2ODQzNTkzM30.I83lUfDX2h0h2KkMR5yHO3ZvqBCgvSQRSJMiM3ZLWyo',
   );
   runApp(MyApp());
 }
@@ -46,9 +49,9 @@ class MyApp extends StatelessWidget {
       } else if (role == 'reviewer') {
         return const ReviewerPage();
       } else if (role == 'hod') {
-      return const HodDashboardPage();
+        return const HodDashboardPage();
       } else {
-        return const LoginPage();
+        return const StudentDashboard();
       }
     }
   }
@@ -60,7 +63,9 @@ class MyApp extends StatelessWidget {
       title: 'Notesheet Approval System',
       theme: ThemeData.dark().copyWith(
         primaryColor: const Color(0xFF800000), // Maroon
-        scaffoldBackgroundColor: const Color(0xFF1A0000), // Dark maroonish background
+        scaffoldBackgroundColor: const Color(
+          0xFF1A0000,
+        ), // Dark maroonish background
         textTheme: const TextTheme(
           bodyLarge: TextStyle(color: Colors.white),
           bodyMedium: TextStyle(color: Colors.white70),

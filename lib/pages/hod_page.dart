@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import'login_page.dart';
 class HodDashboardPage extends StatefulWidget {
   const HodDashboardPage({super.key});
 
@@ -25,7 +25,7 @@ class _HodDashboardPageState extends State<HodDashboardPage> {
           .from('notesheets')
           .select()
           
-          .eq('status', 'approved'); // ✅ Correct Supabase null check
+          .eq('status', 'approved'); 
 
       setState(() {
         reviewerApprovedNotesheets = response;
@@ -48,7 +48,7 @@ class _HodDashboardPageState extends State<HodDashboardPage> {
     try {
       await client
           .from('notesheets')
-          .update({'status': isApproved ? 'approved' : 'rejected'})
+          .update({'status': isApproved ? 'final_approved' : 'rejected'})
           .eq('id', id);
 
       fetchReviewerApprovedNotesheets();
@@ -65,6 +65,25 @@ class _HodDashboardPageState extends State<HodDashboardPage> {
       );
     }
   }
+  
+  Future<void> handleLogout() async {
+    try {
+      await client.auth.signOut();
+      if (mounted) {
+        Navigator.pushReplacement(context, 
+         MaterialPageRoute(builder: (context) => LoginPage()),
+         );
+      }
+    } catch (e) {
+      print('Logout failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logout failed')),
+        );
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +95,13 @@ class _HodDashboardPageState extends State<HodDashboardPage> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 4,
+         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Logout',
+            onPressed: handleLogout,
+          ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.red))
@@ -98,17 +124,18 @@ class _HodDashboardPageState extends State<HodDashboardPage> {
                       ),
                       elevation: 6,
                       child: ListTile(
-                        title: Text(
-                          sheet['title'] ?? 'No Title',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Submitted by: ${sheet['submitted_by'] ?? 'Unknown'}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
+                        
+                       title: Text(
+            'Submitted by: ${sheet['student_id'] ?? 'Unknown'}',
+  style: const TextStyle(
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  ),
+),
+subtitle: Text(
+  'Content: ${sheet['content'] ?? 'No content'}',
+  style: const TextStyle(color: Colors.grey),
+),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

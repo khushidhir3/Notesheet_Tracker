@@ -4,6 +4,7 @@ import 'signup_page.dart';
 import 'student_page.dart';
 import 'reviewer_page.dart';
 import 'hod_page.dart';
+import 'student_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -42,7 +43,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final roleResponse = await supabase
-          .from('users')
+          .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
@@ -61,6 +62,10 @@ class _LoginPageState extends State<LoginPage> {
         case 'hod':
           Navigator.pushReplacement(
               context, MaterialPageRoute(builder: (_) =>const HodDashboardPage()));
+          break;
+          case 'dashboard':
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (_) => const StudentDashboard()));
           break;
         default:
           setState(() {

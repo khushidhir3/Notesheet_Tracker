@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_page.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -92,13 +93,22 @@ class _StudentPageState extends State<StudentPage> {
   }
 }
 
+ Future<void> handleLogout() async {
+    try {
+      await client.auth.signOut();
 
-
-
-
-
-
-
+      if (mounted) {
+        Navigator.pushReplacement(context,  MaterialPageRoute(builder: (context) => LoginPage()),);
+      }
+    } catch (e) {
+      print('Logout failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logout failed')),
+        );
+      }
+    }
+  }
 
 
    @override
@@ -112,6 +122,13 @@ class _StudentPageState extends State<StudentPage> {
       appBar: AppBar(
         backgroundColor: maroon,
         title: const Text('Student Notesheet Form'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Logout',
+            onPressed: handleLogout,
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(

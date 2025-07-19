@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_page.dart';
 
 class ReviewerPage extends StatefulWidget {
   const ReviewerPage({super.key});
@@ -63,13 +64,24 @@ Future<void> _deleteNoteSheet(String id) async {
       .delete()
       .eq('id', id);
 
-  // Optionally, handle errors with logging or user feedback
-  // if (response.error != null) {
-  //   debugPrint('Error deleting notesheet: ${response.error!.message}');
-  // } else {
-  //   debugPrint('Notesheet deleted successfully');
-  // }
+  
 }
+Future<void> handleLogout() async {
+    try {
+      await client.auth.signOut();
+
+      if (mounted) {
+        Navigator.pushReplacement(context,  MaterialPageRoute(builder: (context) => LoginPage()),); 
+      }
+    } catch (e) {
+      print('Logout failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logout failed')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +90,14 @@ Future<void> _deleteNoteSheet(String id) async {
       appBar: AppBar(
         title: const Text('Reviewer Dashboard'),
         backgroundColor: maroon,
+      
+       actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Logout',
+            onPressed: handleLogout,
+          ),
+        ],
       ),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: maroon))
