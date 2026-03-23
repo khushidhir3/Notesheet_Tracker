@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../theme/app_theme.dart';
 import 'signup_page.dart';
-import 'student_page.dart';
-import 'reviewer_page.dart';
-import 'hod_page.dart';
-import 'student_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,203 +9,216 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final supabase = Supabase.instance.client;
   bool _loading = false;
   String? _errorText;
+  bool _obscurePassword = true;
 
-  Future<void> login() async {
-    setState(() {
-      _loading = true;
-      _errorText = null;
+  late AnimationController _animController;
+  late Animation<double> _fadeIn;
+  late Animation<Offset> _slideUp;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _fadeIn = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    );
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+    );
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _demoLogin() {
+    setState(() => _loading = true);
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Demo mode — login simulated',
+                style: AppTextStyles.body),
+            backgroundColor: AppColors.bgElevated,
+          ),
+        );
+      }
     });
-
-    try {
-      final response = await supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      final user = response.user;
-
-      if (user == null) {
-        setState(() {
-          _errorText = 'Login failed. Try again.';
-          _loading = false;
-        });
-        return;
-      }
-
-      final roleResponse = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-      final role = roleResponse['role'];
-
-      switch (role) {
-        case 'student':
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const StudentPage()));
-          break;
-        case 'reviewer':
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const ReviewerPage()));
-          break;
-        case 'hod':
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) =>const HodDashboardPage()));
-          break;
-          case 'dashboard':
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const StudentDashboard()));
-          break;
-        default:
-          setState(() {
-            _errorText = 'Invalid user role.';
-          });
-      }
-    } on AuthException catch (e) {
-      setState(() {
-        _errorText = e.message;
-      });
-    } catch (e) {
-      setState(() {
-        _errorText = 'Unexpected error: $e';
-      });
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const maroon = Color(0xFF800000);
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Login',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: maroon,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'NOTESHEET SYSTEM',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: maroon),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    if (_errorText != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(
-                          _errorText!,
-                          style: const TextStyle(color: Colors.red),
+      body: Container(
+        decoration: AppDecorations.scaffoldGradient(),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: FadeTransition(
+                opacity: _fadeIn,
+                child: SlideTransition(
+                  position: _slideUp,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ── Icon ──
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.crimson.withOpacity(0.1),
+                          border: Border.all(
+                            color: AppColors.crimson.withOpacity(0.3),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.crimson.withOpacity(0.3),
+                              blurRadius: 30,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.lock_outlined,
+                          color: AppColors.crimson,
+                          size: 36,
                         ),
                       ),
-                    TextField(
-                      controller: _emailController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Email',
-                        hintStyle: const TextStyle(color: Colors.white60),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: maroon),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: maroon),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                      const SizedBox(height: 24),
+                      // ── Title ──
+                      Text('LOGIN', style: AppTextStyles.headingLarge),
+                      const SizedBox(height: 6),
+                      Text(
+                        'NOTESHEET SYSTEM',
+                        style: AppTextStyles.subtitle,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Password',
-                        hintStyle: const TextStyle(color: Colors.white60),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: maroon),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: maroon),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _loading
-                        ? const CircularProgressIndicator()
-                        : ElevatedButton(
-                            onPressed: login,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: maroon,
-                              minimumSize: const Size(double.infinity, 50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                      const SizedBox(height: 32),
+                      // ── Card ──
+                      Container(
+                        decoration: AppDecorations.glowCard(),
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            if (_errorText != null)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  _errorText!,
+                                  style: AppTextStyles.bodyMuted.copyWith(
+                                    color: AppColors.rejected,
+                                  ),
+                                ),
+                              ),
+                            TextField(
+                              controller: _emailController,
+                              style: AppTextStyles.body,
+                              decoration: AppDecorations.inputDecoration(
+                                'Email',
+                                icon: Icons.email_outlined,
                               ),
                             ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(fontSize: 18),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: AppTextStyles.body,
+                              decoration:
+                                  AppDecorations.inputDecoration(
+                                'Password',
+                                icon: Icons.lock_outline,
+                              ).copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: AppColors.textDim,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() =>
+                                      _obscurePassword = !_obscurePassword),
+                                ),
+                              ),
                             ),
-                          ),
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const SignUpPage()),
-                        );
-                      },
-                      child: const Text.rich(
-                        TextSpan(
-                          text: "Don't have an account? ",
-                          style: TextStyle(color: Colors.white),
-                          children: [
-                            TextSpan(
-                              text: "Sign up",
-                              style: TextStyle(color: maroon),
-                            )
+                            const SizedBox(height: 28),
+                            _loading
+                                ? const SizedBox(
+                                    height: 52,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.crimson,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: _demoLogin,
+                                    style: AppDecorations.primaryButton(),
+                                    child:
+                                        Text('LOGIN', style: AppTextStyles.button),
+                                  ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SignUpPage()),
+                          );
+                        },
+                        child: RichText(
+                          text: TextSpan(
+                            text: "Don't have an account? ",
+                            style: AppTextStyles.bodyMuted.copyWith(
+                              color: AppColors.textDim,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Sign Up',
+                                style: AppTextStyles.bodyMuted.copyWith(
+                                  color: AppColors.crimson,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

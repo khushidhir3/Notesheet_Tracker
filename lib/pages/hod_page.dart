@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import'login_page.dart';
+import '../theme/app_theme.dart';
+
 class HodDashboardPage extends StatefulWidget {
   const HodDashboardPage({super.key});
 
@@ -8,151 +8,297 @@ class HodDashboardPage extends StatefulWidget {
   State<HodDashboardPage> createState() => _HodDashboardPageState();
 }
 
-class _HodDashboardPageState extends State<HodDashboardPage> {
-  final SupabaseClient client = Supabase.instance.client;
-  List<dynamic> reviewerApprovedNotesheets = [];
-  bool isLoading = true;
+class _HodDashboardPageState extends State<HodDashboardPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _fadeIn;
+
+  // Demo data
+  final List<Map<String, dynamic>> _approvedSheets = [
+    {
+      'id': '1',
+      'student_id': 'STU-0042',
+      'content': 'Request for annual cultural fest budget allocation and venue setup',
+      'venue': 'Auditorium A',
+      'date': '2026-03-20T00:00:00',
+      'status': 'approved',
+    },
+    {
+      'id': '2',
+      'student_id': 'STU-0087',
+      'content': 'Technical workshop on AI/ML — guest speaker arrangements',
+      'venue': 'Seminar Hall B',
+      'date': '2026-03-18T00:00:00',
+      'status': 'approved',
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
-    fetchReviewerApprovedNotesheets();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
   }
 
-  Future<void> fetchReviewerApprovedNotesheets() async {
-    try {
-      final response = await client
-          .from('notesheets')
-          .select()
-          
-          .eq('status', 'approved'); 
-
-      setState(() {
-        reviewerApprovedNotesheets = response;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      print('Error fetching notesheets: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error loading data')),
-        );
-      }
-    }
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
-  Future<void> handleApproval(String id, bool isApproved) async {
-    try {
-      await client
-          .from('notesheets')
-          .update({'status': isApproved ? 'final_approved' : 'rejected'})
-          .eq('id', id);
-
-      fetchReviewerApprovedNotesheets();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isApproved ? 'Approved' : 'Rejected'),
+  void _handleApproval(int index, bool isApproved) {
+    setState(() => _approvedSheets.removeAt(index));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isApproved ? Icons.verified : Icons.cancel,
+              color: isApproved ? AppColors.approved : AppColors.rejected,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isApproved ? 'Final approval granted' : 'Rejected by HOD',
+              style: AppTextStyles.body,
+            ),
+          ],
         ),
-      );
-    } catch (e) {
-      print('Error approving/rejecting: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error updating status')),
-      );
-    }
+        backgroundColor: AppColors.bgElevated,
+      ),
+    );
   }
-  
-  Future<void> handleLogout() async {
-    try {
-      await client.auth.signOut();
-      if (mounted) {
-        Navigator.pushReplacement(context, 
-         MaterialPageRoute(builder: (context) => LoginPage()),
-         );
-      }
-    } catch (e) {
-      print('Logout failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logout failed')),
-        );
-      }
-    }
-  }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('HOD Dashboard'),
-        centerTitle: true,
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        elevation: 4,
-         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Logout',
-            onPressed: handleLogout,
+      appBar: GradientAppBar(
+        title: 'HOD — Final Authority',
+        onLogout: () => Navigator.pop(context),
+        extraActions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: StatusBadge(
+              text: '${_approvedSheets.length} Awaiting',
+              color: AppColors.crimson,
+            ),
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.red))
-          : reviewerApprovedNotesheets.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No notesheets for final approval',
-                    style: TextStyle(color: Colors.white),
+      body: Container(
+        decoration: AppDecorations.scaffoldGradient(),
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: Column(
+            children: [
+              // Stats bar
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: AppDecorations.glowCard(
+                  glowColor: AppColors.bloodRed,
+                  glowIntensity: 0.15,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _statItem('PENDING', '${_approvedSheets.length}', AppColors.pending),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: AppColors.bloodRed.withOpacity(0.3),
+                    ),
+                    _statItem('APPROVED', '12', AppColors.approved),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: AppColors.bloodRed.withOpacity(0.3),
+                    ),
+                    _statItem('REJECTED', '3', AppColors.rejected),
+                  ],
+                ),
+              ),
+              // List
+              Expanded(
+                child: _approvedSheets.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified_outlined,
+                                color: AppColors.crimson.withOpacity(0.3), size: 64),
+                            const SizedBox(height: 16),
+                            Text('ALL REVIEWED', style: AppTextStyles.heading),
+                            const SizedBox(height: 6),
+                            Text('No pending approvals',
+                                style: AppTextStyles.subtitle),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _approvedSheets.length,
+                        itemBuilder: (context, index) {
+                          return _buildCard(_approvedSheets[index], index);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.heading.copyWith(
+            fontSize: 22,
+            color: color,
+            shadows: [Shadow(color: color.withOpacity(0.5), blurRadius: 10)],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: AppTextStyles.label.copyWith(fontSize: 10)),
+      ],
+    );
+  }
+
+  Widget _buildCard(Map<String, dynamic> sheet, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: AppDecorations.glowCard(glowColor: AppColors.bloodRed),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.bloodRed.withOpacity(0.15),
+                    border: Border.all(
+                      color: AppColors.bloodRed.withOpacity(0.3),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.bloodRed.withOpacity(0.2),
+                        blurRadius: 12,
+                      ),
+                    ],
                   ),
-                )
-              : ListView.builder(
-                  itemCount: reviewerApprovedNotesheets.length,
-                  itemBuilder: (context, index) {
-                    final sheet = reviewerApprovedNotesheets[index];
-                    return Card(
-                      color: const Color(0xFF2B2B2B),
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: const Icon(Icons.gavel_rounded,
+                      color: AppColors.crimson, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(sheet['student_id'],
+                          style: AppTextStyles.cardTitle),
+                      Text(
+                        sheet['date'].toString().split('T')[0],
+                        style: AppTextStyles.label.copyWith(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const StatusBadge(
+                  text: 'REVIEW APPROVED',
+                  color: AppColors.pending,
+                ),
+              ],
+            ),
+            const GlowDivider(),
+            // Content
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.article_outlined,
+                    color: AppColors.textDim, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    sheet['content'] ?? 'No content',
+                    style: AppTextStyles.cardBody,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    color: AppColors.textDim, size: 16),
+                const SizedBox(width: 8),
+                Text(sheet['venue'] ?? '', style: AppTextStyles.cardBody),
+              ],
+            ),
+            const SizedBox(height: 18),
+            // Actions
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleApproval(index, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.approved.withOpacity(0.12),
+                      foregroundColor: AppColors.approved,
+                      side: BorderSide(
+                          color: AppColors.approved.withOpacity(0.3)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 6,
-                      child: ListTile(
-                        
-                       title: Text(
-            'Submitted by: ${sheet['student_id'] ?? 'Unknown'}',
-  style: const TextStyle(
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
-  ),
-),
-subtitle: Text(
-  'Content: ${sheet['content'] ?? 'No content'}',
-  style: const TextStyle(color: Colors.grey),
-),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.check_circle, color: Colors.green),
-                              onPressed: () => handleApproval(sheet['id'], true),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.cancel, color: Colors.red),
-                              onPressed: () => handleApproval(sheet['id'], false),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.verified_rounded, size: 18),
+                    label: Text('FINAL APPROVE',
+                        style: AppTextStyles.button.copyWith(
+                          color: AppColors.approved,
+                          fontSize: 11,
+                        )),
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleApproval(index, false),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.rejected.withOpacity(0.12),
+                      foregroundColor: AppColors.rejected,
+                      side: BorderSide(
+                          color: AppColors.rejected.withOpacity(0.3)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.cancel_rounded, size: 18),
+                    label: Text('REJECT',
+                        style: AppTextStyles.button.copyWith(
+                          color: AppColors.rejected,
+                          fontSize: 11,
+                        )),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

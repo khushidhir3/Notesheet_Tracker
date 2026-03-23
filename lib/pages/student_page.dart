@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login_page.dart';
+import '../theme/app_theme.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -9,18 +8,34 @@ class StudentPage extends StatefulWidget {
   State<StudentPage> createState() => _StudentPageState();
 }
 
-class _StudentPageState extends State<StudentPage> {
+class _StudentPageState extends State<StudentPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController _notesheetController = TextEditingController();
   final TextEditingController _venueController = TextEditingController();
   DateTime? _selectedDate;
-
-  final SupabaseClient client = Supabase.instance.client;
-
-  final Color maroon = const Color(0xFF800000);
-
   bool _loading = false;
+
+  late AnimationController _animController;
+  late Animation<double> _fadeIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..forward();
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _notesheetController.dispose();
+    _venueController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -31,204 +46,211 @@ class _StudentPageState extends State<StudentPage> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: maroon,
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.crimson,
               onPrimary: Colors.black,
-              surface: Colors.black,
-              onSurface: maroon,
+              surface: AppColors.bgCard,
+              onSurface: AppColors.textPrimary,
             ),
-            dialogBackgroundColor: Colors.black,
+            dialogBackgroundColor: AppColors.bgDark,
           ),
           child: child!,
         );
       },
     );
-
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
-  } 
-  Future<void> _submitNotesheet() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  final user = client.auth.currentUser;
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('You must be logged in to submit')),
-    );
-    return;
   }
 
-  if (_selectedDate == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select a date')),
-    );
-    return;
-  }
-
-  setState(() => _loading = true);
-
-  try {
-    final response = await client.from('notesheets').insert({
-      'student_id': user.id,
-      'date': _selectedDate!.toIso8601String(),
-      'venue': _venueController.text.trim(),
-      'content': _notesheetController.text.trim(),
-      'status': 'pending_review',
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Submitted successfully, pending review!')),
-    );
-
-    _notesheetController.clear();
-    _venueController.clear();
-    setState(() => _selectedDate = null);
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Unexpected error: $error')),
-    );
-  } finally {
-    setState(() => _loading = false);
-  }
-}
-
- Future<void> handleLogout() async {
-    try {
-      await client.auth.signOut();
-
+  void _demoSubmit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a date', style: AppTextStyles.body),
+          backgroundColor: AppColors.bgElevated,
+        ),
+      );
+      return;
+    }
+    setState(() => _loading = true);
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
-        Navigator.pushReplacement(context,  MaterialPageRoute(builder: (context) => LoginPage()),);
-      }
-    } catch (e) {
-      print('Logout failed: $e');
-      if (mounted) {
+        setState(() {
+          _loading = false;
+          _notesheetController.clear();
+          _venueController.clear();
+          _selectedDate = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logout failed')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.approved, size: 18),
+                const SizedBox(width: 8),
+                Text('Submitted successfully!', style: AppTextStyles.body),
+              ],
+            ),
+            backgroundColor: AppColors.bgElevated,
+          ),
         );
       }
-    }
+    });
   }
 
-
-   @override
-   Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final dateText = _selectedDate == null
-        ? 'Select Date'
+        ? 'SELECT DATE'
         : _selectedDate!.toLocal().toString().split(' ')[0];
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: maroon,
-        title: const Text('Student Notesheet Form'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Logout',
-            onPressed: handleLogout,
-          ),
-        ],
+      appBar: GradientAppBar(
+        title: 'Student Form',
+        onLogout: () => Navigator.pop(context),
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                // Date picker
-                GestureDetector(
-                  onTap: _pickDate,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: maroon),
-                      borderRadius: BorderRadius.circular(15),
-                      color: Colors.white12,
-                    ),
-                    child: Text(
-                      dateText,
-                      style: TextStyle(color: maroon, fontSize: 18),
-                    ),
-                  ),
-                ),
-                if (_selectedDate == null)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 6, left: 8),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Date is required', style: TextStyle(color: Colors.red)),
-                    ),
-                  ),
-                const SizedBox(height: 24),
-
-                // Venue input
-                TextFormField(
-                  controller: _venueController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Venue',
-                    hintStyle: const TextStyle(color: Colors.white60),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: maroon),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: maroon),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white12,
-                  ),
-                  validator: (val) =>
-                      val == null || val.trim().isEmpty ? 'Venue is required' : null,
-                ),
-                const SizedBox(height: 24),
-
-                // Notesheet content input
-                TextFormField(
-                  controller: _notesheetController,
-                  maxLines: 8,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Enter your notesheet idea',
-                    hintStyle: const TextStyle(color: Colors.white60),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: maroon),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: maroon),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white12,
-                  ),
-                  validator: (val) =>
-                      val == null || val.trim().isEmpty ? 'Notesheet content is required' : null,
-                ),
-                const SizedBox(height: 32),
-
-                // Submit button
-                _loading
-                    ? CircularProgressIndicator(color: maroon)
-                    : ElevatedButton(
-                        onPressed: _submitNotesheet,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: maroon,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+      body: Container(
+        decoration: AppDecorations.scaffoldGradient(),
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // ── Header ──
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.crimson.withOpacity(0.1),
+                            border: Border.all(
+                              color: AppColors.crimson.withOpacity(0.3),
+                            ),
                           ),
+                          child: const Icon(Icons.edit_note_rounded,
+                              color: AppColors.crimson, size: 22),
                         ),
-                        child: const Text(
-                          'Submit to Reviewer',
-                          style: TextStyle(fontSize: 18),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('NEW NOTESHEET',
+                                style: AppTextStyles.cardTitle),
+                            Text('Submit your request',
+                                style: AppTextStyles.label),
+                          ],
                         ),
+                      ],
+                    ),
+                    const GlowDivider(),
+
+                    // ── Form Card ──
+                    Container(
+                      decoration: AppDecorations.glowCard(),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          // Date picker
+                          GestureDetector(
+                            onTap: _pickDate,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgSurface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _selectedDate != null
+                                      ? AppColors.crimson.withOpacity(0.5)
+                                      : AppColors.bloodRed.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    color: _selectedDate != null
+                                        ? AppColors.crimson
+                                        : AppColors.textDim,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    dateText,
+                                    style: _selectedDate != null
+                                        ? AppTextStyles.body
+                                        : AppTextStyles.label,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Venue
+                          TextFormField(
+                            controller: _venueController,
+                            style: AppTextStyles.body,
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty
+                                    ? 'Venue is required'
+                                    : null,
+                            decoration: AppDecorations.inputDecoration(
+                              'Venue',
+                              icon: Icons.location_on_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Content
+                          TextFormField(
+                            controller: _notesheetController,
+                            maxLines: 6,
+                            style: AppTextStyles.body,
+                            validator: (val) =>
+                                val == null || val.trim().isEmpty
+                                    ? 'Content is required'
+                                    : null,
+                            decoration: AppDecorations.inputDecoration(
+                              'Enter your notesheet idea...',
+                              icon: Icons.description_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Submit
+                          _loading
+                              ? const SizedBox(
+                                  height: 52,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.crimson,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : ElevatedButton.icon(
+                                  onPressed: _demoSubmit,
+                                  style: AppDecorations.primaryButton(),
+                                  icon: const Icon(Icons.send_rounded,
+                                      size: 18),
+                                  label: Text('SUBMIT TO REVIEWER',
+                                      style: AppTextStyles.button
+                                          .copyWith(fontSize: 14)),
+                                ),
+                        ],
                       ),
-              ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
