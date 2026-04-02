@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/appwrite_service.dart';
+import '../main.dart';
 
 class HodDashboardPage extends StatefulWidget {
   const HodDashboardPage({super.key});
@@ -13,25 +15,8 @@ class _HodDashboardPageState extends State<HodDashboardPage>
   late AnimationController _animController;
   late Animation<double> _fadeIn;
 
-  // Demo data
-  final List<Map<String, dynamic>> _approvedSheets = [
-    {
-      'id': '1',
-      'student_id': 'STU-0042',
-      'content': 'Request for annual cultural fest budget allocation and venue setup',
-      'venue': 'Auditorium A',
-      'date': '2026-03-20T00:00:00',
-      'status': 'approved',
-    },
-    {
-      'id': '2',
-      'student_id': 'STU-0087',
-      'content': 'Technical workshop on AI/ML — guest speaker arrangements',
-      'venue': 'Seminar Hall B',
-      'date': '2026-03-18T00:00:00',
-      'status': 'approved',
-    },
-  ];
+  List<Map<String, dynamic>> _approvedSheets = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -41,7 +26,48 @@ class _HodDashboardPageState extends State<HodDashboardPage>
       duration: const Duration(milliseconds: 800),
     )..forward();
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _fetchData();
   }
+
+  Future<void> _fetchData() async {
+    setState(() => _loading = true);
+    if (demoMode) {
+      setState(() {
+        _approvedSheets = [
+          {
+            'id': '1',
+            'student_id': 'STU-0042',
+            'content': 'Request for annual cultural fest budget allocation and venue setup',
+            'venue': 'Auditorium A',
+            'date': '2026-03-20T00:00:00',
+            'status': 'approved',
+          },
+        ];
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      final docs = await AppwriteService.getNotesheetsByStatus('reviewer_approved');
+      if (mounted) {
+        setState(() {
+          _approvedSheets = docs.map((doc) => {
+            'id': doc.$id,
+            'student_id': doc.data['userId'],
+            'date': doc.data['date'],
+            'venue': doc.data['venue'],
+            'content': doc.data['content'],
+            'status': doc.data['status'],
+          }).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
 
   @override
   void dispose() {
@@ -49,27 +75,24 @@ class _HodDashboardPageState extends State<HodDashboardPage>
     super.dispose();
   }
 
-  void _handleApproval(int index, bool isApproved) {
-    setState(() => _approvedSheets.removeAt(index));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isApproved ? Icons.verified : Icons.cancel,
-              color: isApproved ? AppColors.approved : AppColors.rejected,
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              isApproved ? 'Final approval granted' : 'Rejected by HOD',
-              style: AppTextStyles.body,
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.bgElevated,
-      ),
-    );
+  void _handleApproval(int index, bool isApproved) async {
+    final sheet = _approvedSheets[index];
+    if (demoMode) {
+      setState(() => _approvedSheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Demo: ${isApproved ? 'Approved' : 'Rejected'}')));
+      return;
+    }
+
+    try {
+      final newStatus = isApproved ? 'final_approved' : 'rejected';
+      await AppwriteService.updateNotesheetStatus(sheet['id'], newStatus);
+      setState(() => _approvedSheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isApproved ? 'Final approval granted' : 'Rejected by HOD')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -123,7 +146,9 @@ class _HodDashboardPageState extends State<HodDashboardPage>
               ),
               // List
               Expanded(
-                child: _approvedSheets.isEmpty
+                child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.bloodRed))
+                  : _approvedSheets.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

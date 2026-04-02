@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/appwrite_service.dart';
+import '../main.dart';
 
 class ReviewerPage extends StatefulWidget {
   const ReviewerPage({super.key});
@@ -15,34 +17,8 @@ class _ReviewerPageState extends State<ReviewerPage>
   late AnimationController _animController;
   late Animation<double> _fadeIn;
 
-  // Demo data
-  final List<Map<String, dynamic>> _notesheets = [
-    {
-      'id': '1',
-      'student_id': 'STU-0042',
-      'venue': 'Auditorium A',
-      'date': '2026-03-20T00:00:00',
-      'content': 'Request for annual cultural fest budget allocation and venue setup',
-      'status': 'pending_review',
-    },
-    {
-      'id': '2',
-      'student_id': 'STU-0087',
-      'venue': 'Seminar Hall B',
-      'date': '2026-03-18T00:00:00',
-      'content': 'Technical workshop on AI/ML — guest speaker arrangements',
-      'status': 'pending_review',
-    },
-    {
-      'id': '3',
-      'student_id': 'STU-0115',
-      'venue': 'Sports Ground',
-      'date': '2026-03-25T00:00:00',
-      'content': 'Inter-college cricket tournament logistics and funding',
-      'status': 'pending_review',
-    },
-  ];
-
+  List<Map<String, dynamic>> _notesheets = [];
+  
   @override
   void initState() {
     super.initState();
@@ -51,7 +27,48 @@ class _ReviewerPageState extends State<ReviewerPage>
       duration: const Duration(milliseconds: 800),
     )..forward();
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _fetchData();
   }
+
+  Future<void> _fetchData() async {
+    setState(() => _loading = true);
+    if (demoMode) {
+      setState(() {
+        _notesheets = [
+          {
+            'id': '1',
+            'student_id': 'STU-0042',
+            'venue': 'Auditorium A',
+            'date': '2026-03-20T00:00:00',
+            'content': 'Request for annual cultural fest budget allocation and venue setup',
+            'status': 'pending_review',
+          },
+        ];
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      final docs = await AppwriteService.getNotesheetsByStatus('pending');
+      if (mounted) {
+        setState(() {
+          _notesheets = docs.map((doc) => {
+            'id': doc.$id,
+            'student_id': doc.data['userId'], // Or fetch profile to get name
+            'date': doc.data['date'],
+            'venue': doc.data['venue'],
+            'content': doc.data['content'],
+            'status': doc.data['status'],
+          }).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
 
   @override
   void dispose() {
@@ -59,36 +76,38 @@ class _ReviewerPageState extends State<ReviewerPage>
     super.dispose();
   }
 
-  void _approveSheet(int index) {
-    setState(() => _notesheets.removeAt(index));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: AppColors.approved, size: 18),
-            const SizedBox(width: 8),
-            Text('Approved — forwarded to HOD', style: AppTextStyles.body),
-          ],
-        ),
-        backgroundColor: AppColors.bgElevated,
-      ),
-    );
+  void _approveSheet(int index) async {
+    final sheet = _notesheets[index];
+    if (demoMode) {
+      setState(() => _notesheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Demo: Approved')));
+      return;
+    }
+
+    try {
+      await AppwriteService.updateNotesheetStatus(sheet['id'], 'reviewer_approved');
+      setState(() => _notesheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Approved — forwarded to HOD')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
-  void _rejectSheet(int index) {
-    setState(() => _notesheets.removeAt(index));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.cancel, color: AppColors.rejected, size: 18),
-            const SizedBox(width: 8),
-            Text('Rejected and removed', style: AppTextStyles.body),
-          ],
-        ),
-        backgroundColor: AppColors.bgElevated,
-      ),
-    );
+  void _rejectSheet(int index) async {
+    final sheet = _notesheets[index];
+    if (demoMode) {
+      setState(() => _notesheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Demo: Rejected')));
+      return;
+    }
+
+    try {
+      await AppwriteService.updateNotesheetStatus(sheet['id'], 'rejected');
+      setState(() => _notesheets.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rejected and removed')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -111,29 +130,31 @@ class _ReviewerPageState extends State<ReviewerPage>
         decoration: AppDecorations.scaffoldGradient(),
         child: FadeTransition(
           opacity: _fadeIn,
-          child: _notesheets.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inbox_outlined,
-                          color: AppColors.crimson.withOpacity(0.3), size: 64),
-                      const SizedBox(height: 16),
-                      Text('ALL CLEAR', style: AppTextStyles.heading),
-                      const SizedBox(height: 6),
-                      Text('No pending notesheets',
-                          style: AppTextStyles.subtitle),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _notesheets.length,
-                  itemBuilder: (context, index) {
-                    final sheet = _notesheets[index];
-                    return _buildQuestCard(sheet, index);
-                  },
-                ),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.crimson))
+              : _notesheets.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inbox_outlined,
+                              color: AppColors.crimson.withOpacity(0.3), size: 64),
+                          const SizedBox(height: 16),
+                          Text('ALL CLEAR', style: AppTextStyles.heading),
+                          const SizedBox(height: 6),
+                          Text('No pending notesheets',
+                              style: AppTextStyles.subtitle),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _notesheets.length,
+                      itemBuilder: (context, index) {
+                        final sheet = _notesheets[index];
+                        return _buildQuestCard(sheet, index);
+                      },
+                    ),
         ),
       ),
     );

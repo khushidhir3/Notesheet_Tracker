@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/appwrite_service.dart';
+import '../main.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -13,37 +15,8 @@ class _StudentDashboardState extends State<StudentDashboard>
   late AnimationController _animController;
   late Animation<double> _fadeIn;
 
-  // Demo data — approved notesheets
-  final List<Map<String, dynamic>> _approvedNotesheets = [
-    {
-      'id': '1',
-      'date': '2026-03-15T00:00:00',
-      'venue': 'Auditorium A',
-      'content': 'Annual cultural fest budget allocation — approved by HOD',
-      'status': 'final_approved',
-    },
-    {
-      'id': '2',
-      'date': '2026-03-10T00:00:00',
-      'venue': 'Lab Complex',
-      'content': 'Robotics club equipment purchase — new sensors and microcontrollers',
-      'status': 'final_approved',
-    },
-    {
-      'id': '3',
-      'date': '2026-03-05T00:00:00',
-      'venue': 'Library Hall',
-      'content': 'Book donation drive — logistics and volunteer coordination',
-      'status': 'final_approved',
-    },
-    {
-      'id': '4',
-      'date': '2026-02-28T00:00:00',
-      'venue': 'Sports Ground',
-      'content': 'Inter-department cricket tournament — trophy and refreshments',
-      'status': 'final_approved',
-    },
-  ];
+  List<Map<String, dynamic>> _approvedNotesheets = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -53,6 +26,46 @@ class _StudentDashboardState extends State<StudentDashboard>
       duration: const Duration(milliseconds: 800),
     )..forward();
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    if (demoMode) {
+      setState(() {
+        _approvedNotesheets = [
+          {
+            'id': '1',
+            'date': '2026-03-15T00:00:00',
+            'venue': 'Auditorium A',
+            'content': 'Annual cultural fest budget allocation — approved by HOD',
+            'status': 'final_approved',
+          },
+        ];
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      final docs = await AppwriteService.getUserNotesheets();
+      if (mounted) {
+        setState(() {
+          _approvedNotesheets = docs
+              .where((doc) => doc.data['status'] == 'final_approved')
+              .map((doc) => {
+                    'id': doc.$id,
+                    'date': doc.data['date'],
+                    'venue': doc.data['venue'],
+                    'content': doc.data['content'],
+                    'status': doc.data['status'],
+                  })
+              .toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -153,7 +166,9 @@ class _StudentDashboardState extends State<StudentDashboard>
               ),
               // List
               Expanded(
-                child: _approvedNotesheets.isEmpty
+                child: _loading 
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.approved))
+                  : _approvedNotesheets.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

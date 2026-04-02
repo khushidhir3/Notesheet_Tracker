@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/appwrite_service.dart';
+import '../main.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -63,7 +65,7 @@ class _StudentPageState extends State<StudentPage>
     }
   }
 
-  void _demoSubmit() {
+  void _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,7 +77,39 @@ class _StudentPageState extends State<StudentPage>
       return;
     }
     setState(() => _loading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
+    
+    if (demoMode) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _notesheetController.clear();
+            _venueController.clear();
+            _selectedDate = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: AppColors.approved, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Demo: Submitted successfully!', style: AppTextStyles.body),
+                ],
+              ),
+              backgroundColor: AppColors.bgElevated,
+            ),
+          );
+        }
+      });
+      return;
+    }
+
+    try {
+      await AppwriteService.submitNotesheet(
+        venue: _venueController.text.trim(),
+        content: _notesheetController.text.trim(),
+        date: _selectedDate!,
+      );
       if (mounted) {
         setState(() {
           _loading = false;
@@ -96,7 +130,17 @@ class _StudentPageState extends State<StudentPage>
           ),
         );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}', style: AppTextStyles.body),
+            backgroundColor: AppColors.rejected,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -237,7 +281,7 @@ class _StudentPageState extends State<StudentPage>
                                   ),
                                 )
                               : ElevatedButton.icon(
-                                  onPressed: _demoSubmit,
+                                  onPressed: _submit,
                                   style: AppDecorations.primaryButton(),
                                   icon: const Icon(Icons.send_rounded,
                                       size: 18),

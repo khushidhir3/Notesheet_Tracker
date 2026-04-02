@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'signup_page.dart';
+import '../services/appwrite_service.dart';
+import 'student_page.dart';
+import 'reviewer_page.dart';
+import 'hod_page.dart';
+import 'demo_hub.dart';
+import '../main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -48,20 +54,62 @@ class _LoginPageState extends State<LoginPage>
     super.dispose();
   }
 
-  void _demoLogin() {
-    setState(() => _loading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo mode — login simulated',
-                style: AppTextStyles.body),
-            backgroundColor: AppColors.bgElevated,
-          ),
-        );
-      }
+  void _login() async {
+    setState(() {
+      _loading = true;
+      _errorText = null;
     });
+    if (demoMode) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Demo mode — login simulated', style: AppTextStyles.body),
+              backgroundColor: AppColors.bgElevated,
+            ),
+          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DemoHub()));
+        }
+      });
+      return;
+    }
+
+    try {
+      await AppwriteService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      final profile = await AppwriteService.getCurrentProfile();
+      if (!mounted) return;
+      if (profile != null) {
+        final role = profile.data['role'] as String;
+        Widget nextPage;
+        switch (role) {
+          case 'student':
+            nextPage = const StudentPage();
+            break;
+          case 'reviewer':
+            nextPage = const ReviewerPage();
+            break;
+          case 'hod':
+            nextPage = const HodDashboardPage();
+            break;
+          default:
+            nextPage = const DemoHub();
+        }
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => nextPage));
+      } else {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DemoHub()));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorText = e.toString();
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -179,7 +227,7 @@ class _LoginPageState extends State<LoginPage>
                                     ),
                                   )
                                 : ElevatedButton(
-                                    onPressed: _demoLogin,
+                                      onPressed: _login,
                                     style: AppDecorations.primaryButton(),
                                     child:
                                         Text('LOGIN', style: AppTextStyles.button),

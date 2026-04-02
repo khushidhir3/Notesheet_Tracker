@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'pages/demo_hub.dart';
 import 'theme/app_theme.dart';
+import 'services/appwrite_service.dart';
 
 // ═══════════════════════════════════════════
 //  Set to false when connecting real backend
@@ -11,10 +12,9 @@ const bool demoMode = true;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Only initialize Appwrite when not in demo mode
+  // Initialize Appwrite
   if (!demoMode) {
-    // Uncomment when ready:
-    // AppwriteService.init();
+    AppwriteService.init();
   }
 
   runApp(const MyApp());

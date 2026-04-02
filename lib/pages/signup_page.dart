@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/appwrite_service.dart';
 import 'login_page.dart';
+import '../main.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -60,21 +62,53 @@ class _SignUpPageState extends State<SignUpPage>
     super.dispose();
   }
 
-  void _demoSignup() {
+  void _signup() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo mode — signup simulated',
-                style: AppTextStyles.body),
-            backgroundColor: AppColors.bgElevated,
-          ),
-        );
-      }
+    setState(() {
+      _loading = true;
+      _errorText = null;
     });
+    if (demoMode) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Demo mode — signup simulated', style: AppTextStyles.body),
+              backgroundColor: AppColors.bgElevated,
+            ),
+          );
+        }
+      });
+      return;
+    }
+
+    try {
+      await AppwriteService.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
+        role: _selectedRole,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Account created! Please log in.', style: AppTextStyles.body),
+          backgroundColor: AppColors.bgElevated,
+        ),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorText = e.toString();
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -303,7 +337,7 @@ class _SignUpPageState extends State<SignUpPage>
                                       ),
                                     )
                                   : ElevatedButton(
-                                      onPressed: _demoSignup,
+                                      onPressed: _signup,
                                       style: AppDecorations.primaryButton(),
                                       child: Text('SIGN UP',
                                           style: AppTextStyles.button),
